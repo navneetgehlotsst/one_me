@@ -354,7 +354,8 @@ class AuthController extends Controller
     }
 
     public function updateProfileImage(Request $request){
-        $id = auth()->user()->id;
+        $data = $request->all();
+        $id = $data['id'];
         $data = $request->all();
         $validator = Validator::make($data, [
             'avatar'        =>  'mimes:jpeg,jpg,png|required|max:2000',

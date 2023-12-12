@@ -40,6 +40,7 @@ Route::group(['prefix'=>'auth'], function(){
     Route::post('/login', [AuthController::class, 'login']);
     Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
     Route::post('/set-forgot-password', [AuthController::class, 'setForgotPassword']);
+    Route::post('/update-profile-image', [AuthController::class, 'updateProfileImage']);
 });
 
 Route::middleware('jwt.verify')->group(function() {
@@ -48,7 +49,6 @@ Route::middleware('jwt.verify')->group(function() {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::post('/reset-password', [AuthController::class, 'resetPassword']);
     Route::put('/update-profile', [AuthController::class, 'updateProfile']);
-    Route::post('/update-profile-image', [AuthController::class, 'updateProfileImage']);
     // Bussiness Category
     Route::post('/category', [BussinesCategoryController::class, 'category']);
     // Bussuness
