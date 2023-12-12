@@ -354,9 +354,9 @@ class AuthController extends Controller
     }
 
     public function updateProfileImage(Request $request){
+        $url = url('/').'/';
         $data = $request->all();
         $id = $data['id'];
-        $data = $request->all();
         $validator = Validator::make($data, [
             'avatar'        =>  'mimes:jpeg,jpg,png|required|max:2000',
         ]);
@@ -375,6 +375,7 @@ class AuthController extends Controller
             $file->move($path, $filename);
             $user->avatar   = $folder.$filename;
             $user->save();
+            $user->avatar = $url . $user->avatar;
             return $this->successResponse($user,'Profile image update successfully', 200);
         }
         catch(Exception $e)
