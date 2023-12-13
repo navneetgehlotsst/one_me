@@ -42,7 +42,8 @@ class User extends Authenticatable implements JWTSubject
         'otp',
         'otp_expire_time',
         'goodwill',
-        'country_code'
+        'country_code',
+        'preference',
     ];
 
     /**

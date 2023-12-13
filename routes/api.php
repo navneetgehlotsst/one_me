@@ -41,6 +41,7 @@ Route::group(['prefix'=>'auth'], function(){
     Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
     Route::post('/set-forgot-password', [AuthController::class, 'setForgotPassword']);
     Route::post('/update-profile-image', [AuthController::class, 'updateProfileImage']);
+    Route::post('/update-preference', [AuthController::class, 'updatePreference']);
 });
 
 Route::middleware('jwt.verify')->group(function() {

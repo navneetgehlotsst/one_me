@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\User;
+use App\Models\UserPreference;
 use Tymon\JWTAuth\Facades\JWTAuth;
 use Illuminate\Support\Facades\Validator;
 use Tymon\JWTAuth\Exceptions\JWTException;
@@ -31,6 +32,53 @@ class AuthController extends Controller
             return $this->errorResponse('Error occurred', 500);
         }
     }
+
+    public function getUserDetail($user_id){
+        $base_url = asset('/');
+        $user = User::where('id',$user_id)->first();
+
+        if($user->email_verified_at){
+            $user->email_verified_at = $user->email_verified_at;
+        }else{
+            $user->email_verified_at = "";
+        }
+
+        if($user->phone_verified_at){
+            $user->phone_verified_at = $user->phone_verified_at;
+        }else{
+            $user->phone_verified_at = "";
+        }
+
+        if($user->avatar){
+            $user->avatar = $base_url.$user->avatar;
+        }else{
+            $user->avatar = "";
+        }
+
+        $userarray = [
+            'id' => $user->id,
+            'first_name' => $user->first_name,
+            'last_name' => $user->last_name,
+            'full_name' => $user->full_name,
+            'email' => $user->email,
+            'country_code' => $user->country_code,
+            'phone' => $user->phone,
+            'email_verified_at' => $user->email_verified_at,
+            'phone_verified_at' => $user->phone_verified_at,
+            'role' => $user->role,
+            'address' => $user->address,
+            'area' => $user->area,
+            'city' => $user->city,
+            'country' => $user->country,
+            'zipcode' => $user->zipcode,
+            'latitude' => $user->latitude,
+            'longitude' => $user->longitude,
+            'preference' => $user->preference,
+            'status' => $user->status,
+        ];
+        return $userarray;
+    }
+
 
     public function sendOtp(Request $request){
         $data = $request->all();
@@ -137,19 +185,11 @@ class AuthController extends Controller
     {
         $data = $request->all();
         $check_email = 1;
-        if (array_key_exists('email', $data)) {
-            $user = User::where('email', $data['email'])->first();
-            if (!$user || $user->email_verified_at === null) {
-                $check_email = 0;
-            }
-        }
-        $data['check_email'] = $check_email;
         $validator = Validator::make($data, [
             'first_name' => 'required|string|max:100',
             'last_name' => 'required|string|max:100',
-            'email' => 'required|email',
-            'check_email' => 'required|not_in:1',
-            'mobile' => ["required", "min:9", "max:12", "unique:users,phone"],
+            'email' => 'required|email|unique:users,email',
+            'mobile' => 'required|numeric|digits_between:4,12|unique:users,phone',
             'password' => 'required|min:6',
             'c_password' => 'required|same:password',
             'address' => 'sometimes|string|max:255',
@@ -178,7 +218,12 @@ class AuthController extends Controller
                 'status' => 'active',
             ]
         );
-        return $this->successResponse($user,'User successfully registered', 422);
+        $id = $user->id;
+
+        //$datauser['user'] = $this->getUserDetail($id);
+        $datauser = $this->getUserDetail($id);
+
+        return $this->successResponse($datauser,'User successfully registered', 422);
 
     }
 
@@ -186,7 +231,7 @@ class AuthController extends Controller
     {
         $input = $request->only('phone', 'password');
         $validator = Validator::make($input, [
-            'phone' => 'required',
+            'phone' => 'required|numeric|digits_between:8,12',
             'password' => 'required',
         ]);
 
@@ -201,7 +246,16 @@ class AuthController extends Controller
                     return $this->errorResponse('You are a inactive user!pleae contact to adminstrator', 400);
                 }
             }
+
+            if($user->phone_verified_at == null){
+                $data['user'] = $this->getUserDetail($user->id);
+                return $this->errordataResponse($data,'Mobile Number Not Verified', 400);
+            }
+        }else{
+            return $this->errorResponse('invalid login credentials', 400);
         }
+
+
 
         try{
             if(!$token = JWTAuth::attempt($input)) {
@@ -212,7 +266,8 @@ class AuthController extends Controller
         }
         $data['access_token'] = $token;
         $data['token_type'] = 'bearer';
-        $data['user'] = auth()->user();
+        $data['preference'] = $user->preference;
+        $data['user'] = $this->getUserDetail(auth()->user()->id);
         return $this->successResponse($data,'Login successfully.', 200);
 
     }
@@ -240,6 +295,11 @@ class AuthController extends Controller
             }
         } catch (JWTException $e) {
             return $this->errorResponse($e->getMessage(), 500);
+        }
+        if($user->avatar = ""){
+            $user->avatar = $url . $user->avatar;
+        }else{
+            $user->avatar = "";
         }
         return $this->successResponse($user,'user data retrieved', 200);
     }
@@ -350,7 +410,43 @@ class AuthController extends Controller
         $user->email = $request->email;
         $user->address = $request->address;
         $user->save();
-        return $this->successResponse($user,'A six digits password reset code is sent to your email.Please check your email', 200);
+        if($user->avatar = ""){
+            $user->avatar = $url . $user->avatar;
+        }else{
+            $user->avatar = "";
+        }
+        return $this->successResponse($user,'Profile update succesfully', 200);
+    }
+
+
+    public function updatePreference(Request $request){
+        $url = url('/').'/';
+        $data   =   $request->all();
+        $id = $data['id'];
+        $validator = Validator::make($data, [
+            'preference'        =>  'required',
+        ]);
+        if($validator->fails()) {
+            return $this->errorResponse($validator->getMessageBag()->first(), 422);
+        }
+
+        $preference = $request->preference;
+        $preferencearray = explode(",",$preference);
+
+        foreach ($preferencearray as $key => $value) {
+            UserPreference::create([
+                'user_id' => $id,
+                'preference' => $value,
+            ]);
+        }
+
+        $user = User::find($id);
+        $user->preference = 1;
+        $user->save();
+        $user->avatar = $url . $user->avatar;
+
+
+        return $this->successResponse($user,'Preference added Succesfully', 200);
     }
 
     public function updateProfileImage(Request $request){
@@ -404,7 +500,8 @@ class AuthController extends Controller
         if($validator->fails()) {
             return $this->errorResponse($validator->getMessageBag()->first(), 422);
         }else{
-            $code = rand(100000,999999);
+            //$code = rand(100000,999999);
+            $code = '123456';
             $date = date('Y-m-d H:i:s');
             $currentDate = strtotime($date);
             $futureDate = $currentDate+(60*5);
@@ -416,7 +513,9 @@ class AuthController extends Controller
             $user->otp = $code;
             $user->otp_expire_time = $futureDate;
             $user->save();
-            return $this->successResponse('', 'A six digits Mobile verification code is sent to your Mobile.Please check your Mobile', 200);
+            $datauser['otp'] = $code;
+            $datauser['user'] = $this->getUserDetail($user->id);
+            return $this->successResponse($datauser, 'A six digits Mobile verification code is sent to your Mobile.Please check your Mobile', 200);
 
         }
     }
@@ -440,7 +539,8 @@ class AuthController extends Controller
         if($validator->fails()) {
             return $this->errorResponse($validator->getMessageBag()->first(), 422);
         }else{
-            $code = rand(100000,999999);
+            // $code = rand(100000,999999);
+            $code = '123456';
             $date = date('Y-m-d H:i:s');
             $currentDate = strtotime($date);
             $futureDate = $currentDate+(60*5);
@@ -452,7 +552,10 @@ class AuthController extends Controller
             $user->otp = $code;
             $user->otp_expire_time = $futureDate;
             $user->save();
-            return $this->successResponse('', 'A six digits Mobile verification code is sent to your Mobile.Please check your Mobile', 200);
+
+            $datauser['otp'] = $code;
+            $datauser['user'] = $this->getUserDetail($user->id);
+            return $this->successResponse($datauser, 'A six digits Mobile verification code is sent to your Mobile.Please check your Mobile', 200);
 
         }
     }
@@ -475,7 +578,15 @@ class AuthController extends Controller
                     $user->otp_expire_time = '';
                     $user->phone_verified_at = $date;
                     $user->save();
-                    return $this->successResponse('', 'Mobile Number verified successfully.', 200);
+                    $input['phone'] = $user->phone;
+                    $input['password'] = $user->password;
+                    $token = JWTAuth::attempt($input);
+
+                    $datauser['access_token'] = $token;
+                    $datauser['token_type'] = 'bearer';
+                    $data['preference'] = $user->preference;
+                    $datauser['user'] = $this->getUserDetail($user->id);
+                    return $this->successResponse($datauser, 'Mobile Number verified successfully.', 200);
                 }else{
                     $user->otp = '';
                     $user->otp_expire_time = '';
