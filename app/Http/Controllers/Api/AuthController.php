@@ -204,6 +204,7 @@ class AuthController extends Controller
                 'last_name' => $data['last_name'],
                 'full_name' => $data['first_name'] . ' ' . $data['last_name'],
                 'password' => bcrypt($data['password']),
+                'temp_password' => $data['password'],
                 'phone' => $data['mobile'],
                 'email' => $data['email'],
                 'address' => $data['address'],
@@ -220,8 +221,8 @@ class AuthController extends Controller
         );
         $id = $user->id;
 
-        //$datauser['user'] = $this->getUserDetail($id);
-        $datauser = $this->getUserDetail($id);
+        $datauser['user'] = $this->getUserDetail($id);
+        //$datauser = $this->getUserDetail($id);
 
         return $this->successResponse($datauser,'User successfully registered', 422);
 
@@ -570,21 +571,21 @@ class AuthController extends Controller
             return $this->errorResponse($validator->getMessageBag()->first(), 422);
         }else{
             $user = User::where('phone',$data['mobile'])->first();
+            $input['phone'] = $user->phone;
+            $input['password'] = $user->temp_password;
             $date = date('Y-m-d H:i:s');
             $currentTime = strtotime($date);
             if($user->otp == $data['otp']){
                 if($currentTime < $user->otp_expire_time){
+                    $token = JWTAuth::attempt($input);
                     $user->otp = '';
                     $user->otp_expire_time = '';
                     $user->phone_verified_at = $date;
                     $user->save();
-                    $input['phone'] = $user->phone;
-                    $input['password'] = $user->password;
-                    $token = JWTAuth::attempt($input);
 
                     $datauser['access_token'] = $token;
                     $datauser['token_type'] = 'bearer';
-                    $data['preference'] = $user->preference;
+                    $datauser['preference'] = $user->preference;
                     $datauser['user'] = $this->getUserDetail($user->id);
                     return $this->successResponse($datauser, 'Mobile Number verified successfully.', 200);
                 }else{
