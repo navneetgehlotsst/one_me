@@ -502,7 +502,7 @@ class AuthController extends Controller
             return $this->errorResponse($validator->getMessageBag()->first(), 422);
         }else{
             //$code = rand(100000,999999);
-            $code = '123456';
+            $code = '1234';
             $date = date('Y-m-d H:i:s');
             $currentDate = strtotime($date);
             $futureDate = $currentDate+(60*5);
