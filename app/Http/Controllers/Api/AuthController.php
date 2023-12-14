@@ -308,31 +308,35 @@ class AuthController extends Controller
 
     public function forgotPassword(Request $request){
         $data = $request->all();
-
         $validator = Validator::make($data, [
             'phone' => "required|numeric|digits_between:8,12|exists:users",
-            'type'  => "required|numeric",
+            'type'  => "required",
             'country_code' => 'required',
-
         ]);
 
         if($validator->fails()) {
             return $this->errorResponse($validator->getMessageBag()->first(), 422);
         }else{
-            $user = User::where('phone',$data['phone'])->where('country_code',$data['country_code'])->first();
-            //$code = rand(100000,999999);
-            $code = '1234';
-            $date = date('Y-m-d H:i:s');
-            $currentDate = strtotime($date);
-            $futureDate = $currentDate + (60*5);
-            $user->otp = $code;
-            $user->otp_expire_time = $futureDate;
-            $user->save();
 
-            $datauser['otp'] = $code;
-            $datauser['user'] = $this->getUserDetail($user->id);
-            $datauser['type'] = $request->type;
-            return $this->successResponse($datauser,'A 4 digits password reset code is sent to your mobile number.', 200);
+            $user = User::where('phone',$data['phone'])->where('country_code',$data['country_code'])->first();
+            if($user){
+                //$code = rand(100000,999999);
+                $code = '1234';
+                $date = date('Y-m-d H:i:s');
+                $currentDate = strtotime($date);
+                $futureDate = $currentDate + (60*5);
+                $user->otp = '1234';
+                $user->otp_expire_time = $futureDate;
+                $user->save();
+
+                $datauser['otp'] = $code;
+                $datauser['user'] = $this->getUserDetail($user->id);
+                $datauser['type'] = $request->type;
+                return $this->successResponse($datauser,'A 4 digits password reset code is sent to your mobile number.', 200);
+
+            }else{
+                return $this->errorResponse('user Not Found', 400);
+            }
 
         }
     }
@@ -419,6 +423,13 @@ class AuthController extends Controller
         $user->phone = $request->mobile;
         $user->email = $request->email;
         $user->address = $request->address;
+        $user->city = $request->city;
+        $user->state = $request->state;
+        $user->country = $request->country;
+        $user->zipcode = $request->zipcode;
+        $user->latitude = $request->latitude;
+        $user->longitude = $request->longitude;
+        $user->country_code = $request->country_code;
         $user->save();
         if($user->avatar = ""){
             $user->avatar = $url . $user->avatar;
@@ -504,7 +515,7 @@ class AuthController extends Controller
         $validator = Validator::make($data, [
             'mobile' => ["required", "min:9", "max:12"],
             'is_valid_mobile' => 'not_in:0',
-            'type'  => "required|numeric",
+            'type'  => "required",
             'country_code' => 'required',
         ],[
             'is_valid_mobile.not_in' => 'Mobile is already verified.'
@@ -519,9 +530,8 @@ class AuthController extends Controller
             $futureDate = $currentDate+(60*5);
             $user = User::where('phone',$data['mobile'])->where('country_code',$data['country_code'])->first();
             if(!$user){
-                $user = new User();
+                return $this->errorResponse('user Not Found', 400);
             }
-            $user->phone = $data['mobile'];
             $user->otp = $code;
             $user->otp_expire_time = $futureDate;
             $user->save();
@@ -581,7 +591,7 @@ class AuthController extends Controller
         $validator = Validator::make($data, [
             'mobile' => ["required", "min:9", "max:12"],
             'otp' => "required|max:6",
-            'type'  => "required|numeric"
+            'type'  => "required"
         ]);
         if($validator->fails()) {
             return $this->errorResponse($validator->getMessageBag()->first(), 422);

@@ -49,7 +49,7 @@ Route::middleware('jwt.verify')->group(function() {
     Route::post('/refresh', [AuthController::class, 'refresh']);
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::post('/reset-password', [AuthController::class, 'resetPassword']);
-    Route::put('/update-profile', [AuthController::class, 'updateProfile']);
+    Route::post('/update-profile', [AuthController::class, 'updateProfile']);
     // Bussiness Category
     Route::post('/preference', [BussinesCategoryController::class, 'preference']);
     // Bussuness
