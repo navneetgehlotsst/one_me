@@ -234,13 +234,14 @@ class AuthController extends Controller
         $validator = Validator::make($input, [
             'phone' => 'required|numeric|digits_between:8,12',
             'password' => 'required',
+            'country_code' => 'required',
         ]);
 
         if($validator->fails()){
             return $this->errorResponse($validator->getMessageBag()->first(), 422);
         }
 
-        $user = User::where('phone',$input['phone'])->first();
+        $user = User::where('phone',$input['phone'])->where('country_code',$input['country_code'])->first();
         if($user){
             if(Hash::check($input['password'], $user->password)){
                 if($user->status != 'active'){
@@ -309,23 +310,29 @@ class AuthController extends Controller
         $data = $request->all();
 
         $validator = Validator::make($data, [
-            'email' => "required|email|exists:users",
+            'phone' => "required|numeric|digits_between:8,12|exists:users",
+            'type'  => "required|numeric",
+            'country_code' => 'required',
+
         ]);
 
         if($validator->fails()) {
             return $this->errorResponse($validator->getMessageBag()->first(), 422);
         }else{
-            $user = User::where('email',$data['email'])->first();
-            $code = rand(100000,999999);
+            $user = User::where('phone',$data['phone'])->where('country_code',$data['country_code'])->first();
+            //$code = rand(100000,999999);
+            $code = '1234';
             $date = date('Y-m-d H:i:s');
             $currentDate = strtotime($date);
             $futureDate = $currentDate + (60*5);
             $user->otp = $code;
             $user->otp_expire_time = $futureDate;
             $user->save();
-            $name = $user->first_name.' '.$user->last_name;
-            Mail::to($data['email'])->send(new ForgotPasswordMail($user, $code));
-            return $this->successResponse('','A six digits password reset code is sent to your email.Please check your email', 200);
+
+            $datauser['otp'] = $code;
+            $datauser['user'] = $this->getUserDetail($user->id);
+            $datauser['type'] = $request->type;
+            return $this->successResponse($datauser,'A 4 digits password reset code is sent to your mobile number.', 200);
 
         }
     }
@@ -333,9 +340,9 @@ class AuthController extends Controller
     public function setForgotPassword(Request $request){
         $data = $request->all();
         $validator = Validator::make($data, [
-            'email' => 'required|email',
+            'phone' => 'required|numeric|digits_between:8,12|exists:users',
             'password' => 'required|min:6',
-            'otp' => 'required|numeric|min:6',
+            'country_code' => 'required',
         ]);
 
         if($validator->fails()) {
@@ -343,7 +350,7 @@ class AuthController extends Controller
         }else{
             $date = date('Y-m-d H:i:s');
             $currentTime = strtotime($date);
-            $user = User::where('email',$data['email'])->where('otp',$data['otp'])->where('otp_expire_time','>',$currentTime)->first();
+            $user = User::where('phone',$data['phone'])->where('country_code',$data['country_code'])->first();
             if($user){
                 if(Hash::check($request->password,$user->password)){
                     return $this->errorResponse('Cannot use your old password as new password.', 400);
@@ -352,12 +359,14 @@ class AuthController extends Controller
                     $user->otp = '';
                     $user->otp_expire_time = '';
                     $user->save();
-                    return $this->successResponse('','New Password set successfully.Please Login', 200);
+                    $datauser['user'] = $this->getUserDetail($user->id);
+
+                    return $this->successResponse($datauser,'New Password set successfully.Please Login', 200);
                 }
 
             }
             else{
-                return $this->errorResponse('Otp expired or Please enter valid otp.', 400);
+                return $this->errorResponse('Enter Valid Mobile Number.', 400);
             }
         }
     }
@@ -486,7 +495,7 @@ class AuthController extends Controller
         $data = $request->all();
         $is_valid_mobile = 1;
         if(array_key_exists('mobile',$data)){
-            $check_mobile = User::where('phone',$data['mobile'])->where('phone_verified_at','!=',null)->first();
+            $check_mobile = User::where('phone',$data['mobile'])->where('country_code',$data['country_code'])->where('phone_verified_at','!=',null)->first();
             if($check_mobile){
                 $is_valid_mobile = 0;
             }
@@ -495,6 +504,8 @@ class AuthController extends Controller
         $validator = Validator::make($data, [
             'mobile' => ["required", "min:9", "max:12"],
             'is_valid_mobile' => 'not_in:0',
+            'type'  => "required|numeric",
+            'country_code' => 'required',
         ],[
             'is_valid_mobile.not_in' => 'Mobile is already verified.'
         ]);
@@ -506,7 +517,7 @@ class AuthController extends Controller
             $date = date('Y-m-d H:i:s');
             $currentDate = strtotime($date);
             $futureDate = $currentDate+(60*5);
-            $user = User::where('phone',$data['mobile'])->first();
+            $user = User::where('phone',$data['mobile'])->where('country_code',$data['country_code'])->first();
             if(!$user){
                 $user = new User();
             }
@@ -516,7 +527,8 @@ class AuthController extends Controller
             $user->save();
             $datauser['otp'] = $code;
             $datauser['user'] = $this->getUserDetail($user->id);
-            return $this->successResponse($datauser, 'A six digits Mobile verification code is sent to your Mobile.Please check your Mobile', 200);
+            $datauser['type'] = $request->type;
+            return $this->successResponse($datauser, 'A four digits Mobile verification code is sent to your Mobile.Please check your Mobile', 200);
 
         }
     }
@@ -525,7 +537,7 @@ class AuthController extends Controller
         $data = $request->all();
         $is_valid_mobile = 1;
         if(array_key_exists('mobile',$data)){
-            $check_mobile = User::where('phone',$data['mobile'])->where('phone_verified_at','!=',null)->first();
+            $check_mobile = User::where('phone',$data['mobile'])->where('country_code',$data['country_code'])->where('phone_verified_at','!=',null)->first();
             if($check_mobile){
                 $is_valid_mobile = 0;
             }
@@ -534,6 +546,8 @@ class AuthController extends Controller
         $validator = Validator::make($data, [
             'mobile' => ["required", "min:9", "max:12"],
             'is_valid_mobile' => 'not_in:0',
+            'type'  => "required|numeric",
+            'country_code' => 'required',
         ],[
             'is_valid_mobile.not_in' => 'Mobile is already verified.'
         ]);
@@ -545,7 +559,7 @@ class AuthController extends Controller
             $date = date('Y-m-d H:i:s');
             $currentDate = strtotime($date);
             $futureDate = $currentDate+(60*5);
-            $user = User::where('phone',$data['mobile'])->first();
+            $user = User::where('phone',$data['mobile'])->where('country_code',$data['country_code'])->first();
             if(!$user){
                 $user = new User();
             }
@@ -556,7 +570,8 @@ class AuthController extends Controller
 
             $datauser['otp'] = $code;
             $datauser['user'] = $this->getUserDetail($user->id);
-            return $this->successResponse($datauser, 'A six digits Mobile verification code is sent to your Mobile.Please check your Mobile', 200);
+            $datauser['type'] = $request->type;
+            return $this->successResponse($datauser, 'A four digits Mobile verification code is sent to your Mobile.Please check your Mobile', 200);
 
         }
     }
@@ -566,6 +581,7 @@ class AuthController extends Controller
         $validator = Validator::make($data, [
             'mobile' => ["required", "min:9", "max:12"],
             'otp' => "required|max:6",
+            'type'  => "required|numeric"
         ]);
         if($validator->fails()) {
             return $this->errorResponse($validator->getMessageBag()->first(), 422);
@@ -587,6 +603,7 @@ class AuthController extends Controller
                     $datauser['token_type'] = 'bearer';
                     $datauser['preference'] = $user->preference;
                     $datauser['user'] = $this->getUserDetail($user->id);
+                    $datauser['type'] = $request->type;
                     return $this->successResponse($datauser, 'Mobile Number verified successfully.', 200);
                 }else{
                     $user->otp = '';

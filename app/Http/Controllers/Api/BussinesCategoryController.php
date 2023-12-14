@@ -16,7 +16,7 @@ class BussinesCategoryController extends Controller
 {
     use ApiResponser;
 
-    public function category(Request $request){
+    public function preference(Request $request){
         try {
             $categories = Category::all();
             if (empty($categories)) {
